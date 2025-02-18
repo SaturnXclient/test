@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 110, 27, 255;
+    --color-secondary: 0, 240, 255;
+    --color-background: 10, 15, 45;
+  }
+  
+  body {
+    @apply bg-[#0A0F2D] text-white font-inter;
+  }
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-cyan-400;
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at center, rgba(110, 27, 255, 0.15), transparent 60%),
+              radial-gradient(circle at 20% 80%, rgba(0, 240, 255, 0.1), transparent 40%);
+}
+
+.card-gradient {
+  background: linear-gradient(135deg, rgba(110, 27, 255, 0.1), rgba(0, 240, 255, 0.05));
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
