@@ -2,7 +2,9 @@ import React, { useState, useRef, KeyboardEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, ImageIcon, Send, Mic, MicOff, Upload, Loader2,
-  Code, MessageSquare
+  Code, MessageSquare, Settings, Share, Pin, ThumbsUp,
+  Sun, Moon, Volume2, VolumeX, Palette, MessageCircle,
+  Trash2, Copy, BookmarkPlus
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -23,6 +25,15 @@ interface Message {
   content: string;
   type: 'text' | 'image';
   images?: string[];
+  liked?: boolean;
+  pinned?: boolean;
+}
+
+interface Settings {
+  fontSize: 'sm' | 'base' | 'lg';
+  soundEnabled: boolean;
+  autoScroll: boolean;
+  codeTheme: 'dark' | 'light';
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onThemeChange }) => {
@@ -34,6 +45,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatMode, setChatMode] = useState('code');
+  const [settings, setSettings] = useState<Settings>({
+    fontSize: 'base',
+    soundEnabled: true,
+    autoScroll: true,
+    codeTheme: isDarkMode ? 'dark' : 'light',
+  });
+  const [pinnedMessages, setPinnedMessages] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -52,18 +70,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
     }
   });
 
+  const toggleMessagePin = (messageId: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, pinned: !msg.pinned } : msg
+    ));
+    setPinnedMessages(prev => 
+      prev.includes(messageId) 
+        ? prev.filter(id => id !== messageId)
+        : [...prev, messageId]
+    );
+  };
+
+  const toggleMessageLike = (messageId: string) => {
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, liked: !msg.liked } : msg
+    ));
+  };
+
+  const shareMessage = async (message: Message) => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      // Show toast or notification
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+    }
+  };
+
   const startRecording = () => {
     setIsRecording(true);
-    // Implement recording logic
+    if (settings.soundEnabled) {
+      // Play sound effect
+    }
   };
 
   const stopRecording = () => {
     setIsRecording(false);
-    // Implement stop recording logic
+    if (settings.soundEnabled) {
+      // Play sound effect
+    }
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (settings.autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -91,7 +141,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
     setIsLoading(true);
 
     try {
-      const aiResponse = await getGeminiResponse(input, chatMode as 'code' | 'chat');
+      const aiResponse = await getGeminiResponse(input, chatMode as 'code' | 'chat', {
+        temperature: chatMode === 'code' ? 0.3 : 0.7,
+        maxOutputTokens: chatMode === 'code' ? 2048 : 1024,
+      });
       
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -100,10 +153,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
         type: 'text'
       }]);
     } catch (error) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred. Please try again.';
+
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: 'I apologize, but I encountered an error processing your request. Please try again.',
+        content: `I apologize, but I encountered an error: ${errorMessage}`,
         type: 'text'
       }]);
     } finally {
@@ -112,27 +169,151 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
     }
   };
 
-  const Toolbar = () => (
-    <div className="flex items-center space-x-2">
+  const MessageActions = ({ message }: { message: Message }) => (
+    <div className="flex items-center gap-2 mt-2 text-gray-400">
       <button
-        onClick={() => setShowSettings(!showSettings)}
-        className={`p-2 rounded-lg ${
-          isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+        onClick={() => toggleMessageLike(message.id)}
+        className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 ${
+          message.liked ? 'text-purple-500' : ''
         }`}
       >
-        <ImageIcon size={20} />
+        <ThumbsUp className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => toggleMessagePin(message.id)}
+        className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 ${
+          message.pinned ? 'text-purple-500' : ''
+        }`}
+      >
+        <Pin className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => shareMessage(message)}
+        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10"
+      >
+        <Share className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => navigator.clipboard.writeText(message.content)}
+        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10"
+      >
+        <Copy className="w-4 h-4" />
       </button>
     </div>
   );
 
   const SettingsPanel = () => (
-    <div className="p-4">
-      <h3 className={`text-lg font-semibold mb-4 ${
-        isDarkMode ? 'text-white' : 'text-gray-900'
-      }`}>
-        Settings
-      </h3>
-      {/* Add settings content here */}
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className={`text-lg font-semibold ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>
+          Settings
+        </h3>
+        <button
+          onClick={() => setShowSettings(false)}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <h4 className="text-sm font-medium mb-3">Appearance</h4>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span>Theme</span>
+              <button
+                onClick={onThemeChange}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Font Size</span>
+              <div className="flex gap-2">
+                {(['sm', 'base', 'lg'] as const).map(size => (
+                  <button
+                    key={size}
+                    onClick={() => setSettings(prev => ({ ...prev, fontSize: size }))}
+                    className={`px-3 py-1 rounded ${
+                      settings.fontSize === size
+                        ? 'bg-purple-500 text-white'
+                        : 'hover:bg-gray-100 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    {size === 'sm' ? 'A' : size === 'base' ? 'AA' : 'AAA'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Code Theme</span>
+              <button
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  codeTheme: prev.codeTheme === 'dark' ? 'light' : 'dark'
+                }))}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                <Palette className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium mb-3">Behavior</h4>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span>Sound Effects</span>
+              <button
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  soundEnabled: !prev.soundEnabled
+                }))}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                {settings.soundEnabled ? (
+                  <Volume2 className="w-5 h-5" />
+                ) : (
+                  <VolumeX className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Auto-scroll</span>
+              <button
+                onClick={() => setSettings(prev => ({
+                  ...prev,
+                  autoScroll: !prev.autoScroll
+                }))}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                <MessageCircle className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium mb-3">Data</h4>
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all messages?')) {
+                setMessages([]);
+                setPinnedMessages([]);
+              }
+            }}
+            className="flex items-center gap-2 text-red-500 hover:text-red-600"
+          >
+            <Trash2 className="w-5 h-5" />
+            Clear All Messages
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -158,7 +339,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
             Sarux AI Chat
           </h2>
         </div>
-        <Toolbar />
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className={`p-2 rounded-lg ${
+            showSettings
+              ? 'bg-purple-500/20 text-purple-400'
+              : isDarkMode
+                ? 'hover:bg-white/10'
+                : 'hover:bg-gray-100'
+          }`}
+        >
+          <Settings size={20} />
+        </button>
       </div>
 
       <div className="flex flex-1 h-[calc(100vh-4rem)] overflow-hidden">
@@ -186,6 +378,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
             </div>
           </div>
 
+          {pinnedMessages.length > 0 && (
+            <div className={`flex-none p-4 border-b ${
+              isDarkMode ? 'border-white/10' : 'border-gray-200'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Pin className="w-4 h-4 text-purple-500" />
+                <span className="text-sm font-medium">Pinned Messages</span>
+              </div>
+              <div className="space-y-2">
+                {messages
+                  .filter(msg => pinnedMessages.includes(msg.id))
+                  .map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`p-2 rounded ${
+                        isDarkMode ? 'bg-white/5' : 'bg-gray-50'
+                      }`}
+                    >
+                      <p className="text-sm truncate">{msg.content}</p>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
             {messages.map((message) => (
               <div
@@ -210,7 +428,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                           const match = /language-(\w+)/.exec(className || '');
                           return !inline && match ? (
                             <SyntaxHighlighter
-                              style={isDarkMode ? atomDark : oneLight}
+                              style={settings.codeTheme === 'dark' ? atomDark : oneLight}
                               language={match[1]}
                               PreTag="div"
                               {...props}
@@ -224,6 +442,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                           );
                         },
                       }}
+                      className={`text-${settings.fontSize}`}
                     >
                       {message.content}
                     </ReactMarkdown>
@@ -238,10 +457,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                         />
                       ))}
                       {message.content && (
-                        <p className="mt-2">{message.content}</p>
+                        <p className={`mt-2 text-${settings.fontSize}`}>{message.content}</p>
                       )}
                     </div>
                   )}
+                  <MessageActions message={message} />
                 </div>
               </div>
             ))}
@@ -303,7 +523,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                       isDarkMode
                         ? 'border-white/10'
                         : 'border-gray-200'
-                    } focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
+                    } focus:outline-none focus:ring-2 focus:ring-purple-500/20 text-${settings.fontSize}`}
                     minRows={1}
                     maxRows={5}
                   />

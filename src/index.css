@@ -8,11 +8,19 @@
   :root {
     --color-primary: 110, 27, 255;
     --color-secondary: 0, 240, 255;
+    --color-background: 255, 255, 255;
+    --color-text: 17, 24, 39;
+    --color-text-secondary: 107, 114, 128;
+  }
+  
+  .dark {
     --color-background: 10, 15, 45;
+    --color-text: 255, 255, 255;
+    --color-text-secondary: 209, 213, 219;
   }
   
   body {
-    @apply bg-[#0A0F2D] text-white font-inter transition-colors duration-300 antialiased;
+    @apply bg-background text-text font-inter antialiased;
     -webkit-tap-highlight-color: transparent;
   }
 

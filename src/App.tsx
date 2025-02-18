@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
@@ -6,6 +6,7 @@ import {
   Code, Image, MessageSquareText, Shield, Zap, ChevronRight, 
   Sun, Moon, HelpCircle, Laptop, Globe, Database, Cloud, Star
 } from 'lucide-react';
+import { useTheme } from './lib/theme';
 import ParticleBackground from './components/ParticleBackground';
 import Button from './components/Button';
 import ChatInterface from './components/ChatInterface';
@@ -17,26 +18,13 @@ function App() {
   const [featuresRef, featuresInView] = useInView({ triggerOnce: true, threshold: 0.2 });
   const [techRef, techInView] = useInView({ triggerOnce: true, threshold: 0.2 });
   const [showChat, setShowChat] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return saved ? saved === 'dark' : prefersDark;
-  });
+  const { theme, setTheme } = useTheme();
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
   const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', newTheme);
-    document.documentElement.classList.toggle('light', !newTheme);
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    document.documentElement.classList.toggle('light', !isDarkMode);
-  }, []);
 
   const testimonials = [
     {
@@ -95,11 +83,10 @@ function App() {
       <Route
         path="/"
         element={
-          <div className={`min-h-screen ${isDarkMode ? 'dark bg-background' : 'light bg-gray-50'} text-${isDarkMode ? 'white' : 'gray-900'} overflow-x-hidden transition-colors duration-300`}>
+          <div className={`min-h-screen bg-background text-text transition-colors duration-300 overflow-x-hidden`}>
             <ParticleBackground />
             
-            {/* Navigation - Mobile Optimized */}
-            <nav className={`fixed top-0 w-full z-50 ${isDarkMode ? 'bg-background/80' : 'bg-white/80'} backdrop-blur-md transition-colors duration-300`}>
+            <nav className={`fixed top-0 w-full z-50 ${theme === 'dark' ? 'bg-background/80' : 'bg-white/80'} backdrop-blur-md transition-colors duration-300`}>
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
@@ -111,7 +98,7 @@ function App() {
                       onClick={toggleTheme}
                       className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
-                      {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                      {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
                     <Button 
                       variant="secondary" 
@@ -126,19 +113,18 @@ function App() {
               </div>
             </nav>
 
-            {/* Hero Section - Mobile Optimized */}
             <motion.section
               ref={heroRef}
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8 }}
-              className={`pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'hero-gradient' : 'bg-gradient-to-b from-purple-50 to-white'}`}
+              className={`pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 ${theme === 'dark' ? 'hero-gradient' : 'bg-gradient-to-b from-purple-50 to-white'}`}
             >
               <div className="max-w-7xl mx-auto text-center">
                 <h1 className="font-outfit font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl mb-4 sm:mb-6 gradient-text leading-tight">
                   Redefining the Boundaries of Artificial Intelligence
                 </h1>
-                <p className={`text-base sm:text-lg md:text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto mb-8 sm:mb-10 px-4`}>
+                <p className={`text-base sm:text-lg md:text-xl ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto mb-8 sm:mb-10 px-4`}>
                   Experience the next evolution in AI technology with unparalleled code generation,
                   image creation, and intelligent prompt enhancement.
                 </p>
@@ -153,7 +139,6 @@ function App() {
               </div>
             </motion.section>
 
-            {/* Features Section - Updated without images */}
             <motion.section
               ref={featuresRef}
               initial={{ opacity: 0, y: 40 }}
@@ -162,7 +147,7 @@ function App() {
               className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8"
             >
               <div className="max-w-7xl mx-auto">
-                <h2 className={`text-2xl sm:text-3xl md:text-4xl font-outfit font-bold text-center mb-12 sm:mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-2xl sm:text-3xl md:text-4xl font-outfit font-bold text-center mb-12 sm:mb-16 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Key Capabilities
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -188,15 +173,15 @@ function App() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={featuresInView ? { opacity: 1, y: 0 } : {}}
                       transition={{ duration: 0.5, delay: index * 0.2 }}
-                      className={`${isDarkMode ? 'card-gradient' : 'bg-white'} p-6 sm:p-8 rounded-2xl backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 group`}
+                      className={`${theme === 'dark' ? 'card-gradient' : 'bg-white'} p-6 sm:p-8 rounded-2xl backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 group`}
                     >
                       <div className="mb-4 transform group-hover:scale-110 transition-transform duration-300">
                         {feature.icon}
                       </div>
-                      <h3 className={`text-lg sm:text-xl font-outfit font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <h3 className={`text-lg sm:text-xl font-outfit font-semibold mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                         {feature.title}
                       </h3>
-                      <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <p className={`text-sm sm:text-base ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                         {feature.description}
                       </p>
                     </motion.div>
@@ -205,10 +190,9 @@ function App() {
               </div>
             </motion.section>
 
-            {/* Testimonials Section */}
-            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'bg-background' : 'bg-gray-50'}`}>
+            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${theme === 'dark' ? 'bg-background' : 'bg-gray-50'}`}>
               <div className="max-w-7xl mx-auto">
-                <h2 className={`text-3xl md:text-4xl font-outfit font-bold text-center mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-3xl md:text-4xl font-outfit font-bold text-center mb-16 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   What Our Users Say
                 </h2>
                 <div className="relative">
@@ -223,7 +207,7 @@ function App() {
                           key={index}
                           className="w-full flex-shrink-0 px-4"
                         >
-                          <div className={`${isDarkMode ? 'bg-white/5' : 'bg-white'} p-8 rounded-2xl backdrop-blur-sm`}>
+                          <div className={`${theme === 'dark' ? 'bg-white/5' : 'bg-white'} p-8 rounded-2xl backdrop-blur-sm`}>
                             <div className="flex items-center mb-6">
                               <img
                                 src={testimonial.image}
@@ -231,15 +215,15 @@ function App() {
                                 className="w-12 h-12 rounded-full mr-4"
                               />
                               <div>
-                                <h3 className={`font-outfit font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                <h3 className={`font-outfit font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                                   {testimonial.name}
                                 </h3>
-                                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                                   {testimonial.role}
                                 </p>
                               </div>
                             </div>
-                            <p className={`text-lg mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            <p className={`text-lg mb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                               "{testimonial.content}"
                             </p>
                             <div className="flex text-yellow-400">
@@ -260,7 +244,7 @@ function App() {
                         className={`w-3 h-3 rounded-full transition-colors ${
                           activeTestimonial === index
                             ? 'bg-purple-500'
-                            : isDarkMode ? 'bg-white/20' : 'bg-gray-300'
+                            : theme === 'dark' ? 'bg-white/20' : 'bg-gray-300'
                         }`}
                       />
                     ))}
@@ -269,24 +253,23 @@ function App() {
               </div>
             </section>
 
-            {/* FAQ Section */}
-            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'bg-background/50' : 'bg-white'}`}>
+            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${theme === 'dark' ? 'bg-background/50' : 'bg-white'}`}>
               <div className="max-w-3xl mx-auto">
-                <h2 className={`text-3xl md:text-4xl font-outfit font-bold text-center mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-3xl md:text-4xl font-outfit font-bold text-center mb-16 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Frequently Asked Questions
                 </h2>
                 <div className="space-y-4">
                   {faqs.map((faq, index) => (
                     <motion.div
                       key={index}
-                      className={`${isDarkMode ? 'bg-white/5' : 'bg-gray-50'} rounded-lg overflow-hidden`}
+                      className={`${theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'} rounded-lg overflow-hidden`}
                       initial={false}
                     >
                       <button
                         onClick={() => setActiveFaq(activeFaq === index ? null : index)}
                         className="w-full px-6 py-4 text-left flex items-center justify-between"
                       >
-                        <span className={`font-outfit font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <span className={`font-outfit font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                           {faq.question}
                         </span>
                         <ChevronRight
@@ -304,7 +287,7 @@ function App() {
                         transition={{ duration: 0.3 }}
                         className="overflow-hidden"
                       >
-                        <p className={`px-6 pb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <p className={`px-6 pb-4 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                           {faq.answer}
                         </p>
                       </motion.div>
@@ -314,10 +297,9 @@ function App() {
               </div>
             </section>
 
-            {/* Integrations Section */}
-            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'bg-background' : 'bg-gray-50'}`}>
+            <section className={`py-20 px-4 sm:px-6 lg:px-8 ${theme === 'dark' ? 'bg-background' : 'bg-gray-50'}`}>
               <div className="max-w-7xl mx-auto text-center">
-                <h2 className={`text-3xl md:text-4xl font-outfit font-bold mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-3xl md:text-4xl font-outfit font-bold mb-16 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
                   Seamless Integrations
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
@@ -328,12 +310,12 @@ function App() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: index * 0.1 }}
                       className={`${
-                        isDarkMode ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-gray-50'
+                        theme === 'dark' ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-gray-50'
                       } p-6 rounded-xl transition-colors duration-300`}
                     >
                       <div className="flex flex-col items-center">
                         {integration.icon}
-                        <span className={`mt-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <span className={`mt-2 font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
                           {integration.name}
                         </span>
                       </div>
@@ -343,23 +325,21 @@ function App() {
               </div>
             </section>
 
-            {/* Footer */}
             <footer className={`py-8 px-4 sm:px-6 lg:px-8 border-t ${
-              isDarkMode ? 'border-white/10' : 'border-gray-200'
+              theme === 'dark' ? 'border-white/10' : 'border-gray-200'
             }`}>
               <div className="max-w-7xl mx-auto text-center text-sm">
-                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+                <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
                   © 2025 Sarux AI. Developed by ASA Ltd. All rights reserved.
                 </p>
               </div>
             </footer>
 
-            {/* Chat Interface */}
             <AnimatePresence>
               {showChat && (
                 <ChatInterface 
                   onClose={() => setShowChat(false)}
-                  isDarkMode={isDarkMode}
+                  isDarkMode={theme === 'dark'}
                   onThemeChange={toggleTheme}
                 />
               )}
