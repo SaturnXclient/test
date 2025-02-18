@@ -100,15 +100,15 @@ function App() {
           <div className={`min-h-screen ${isDarkMode ? 'dark bg-background' : 'light bg-gray-50'} text-${isDarkMode ? 'white' : 'gray-900'} overflow-x-hidden transition-colors duration-300`}>
             <ParticleBackground />
             
-            {/* Navigation */}
+            {/* Navigation - Mobile Optimized */}
             <nav className={`fixed top-0 w-full z-50 ${isDarkMode ? 'bg-background/80' : 'bg-white/80'} backdrop-blur-md transition-colors duration-300`}>
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
-                    <Zap className="w-8 h-8 text-purple-500" />
-                    <span className="font-outfit font-bold text-xl">Sarux AI</span>
+                    <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
+                    <span className="font-outfit font-bold text-lg sm:text-xl">Sarux AI</span>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 sm:space-x-4">
                     <button
                       onClick={toggleTheme}
                       className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
@@ -119,6 +119,7 @@ function App() {
                       variant="secondary" 
                       size="sm"
                       onClick={() => navigate('/early-access')}
+                      className="hidden sm:inline-flex"
                     >
                       Get Early Access
                     </Button>
@@ -127,46 +128,46 @@ function App() {
               </div>
             </nav>
 
-            {/* Hero Section */}
+            {/* Hero Section - Mobile Optimized */}
             <motion.section
               ref={heroRef}
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8 }}
-              className={`pt-32 pb-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'hero-gradient' : 'bg-gradient-to-b from-purple-50 to-white'}`}
+              className={`pt-24 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 ${isDarkMode ? 'hero-gradient' : 'bg-gradient-to-b from-purple-50 to-white'}`}
             >
               <div className="max-w-7xl mx-auto text-center">
-                <h1 className="font-outfit font-bold text-4xl md:text-6xl lg:text-7xl mb-6 gradient-text">
+                <h1 className="font-outfit font-bold text-3xl sm:text-4xl md:text-6xl lg:text-7xl mb-4 sm:mb-6 gradient-text leading-tight">
                   Redefining the Boundaries of Artificial Intelligence
                 </h1>
-                <p className={`text-lg md:text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto mb-10`}>
+                <p className={`text-base sm:text-lg md:text-xl ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} max-w-3xl mx-auto mb-8 sm:mb-10 px-4`}>
                   Experience the next evolution in AI technology with unparalleled code generation,
                   image creation, and intelligent prompt enhancement.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Button size="lg" onClick={() => navigate('/early-access')}>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
+                  <Button size="lg" onClick={() => navigate('/early-access')} className="w-full sm:w-auto">
                     Get Early Access <ChevronRight className="ml-2 w-5 h-5" />
                   </Button>
-                  <Button variant="secondary" size="lg" onClick={() => setShowChat(true)}>
+                  <Button variant="secondary" size="lg" onClick={() => setShowChat(true)} className="w-full sm:w-auto">
                     Try Demo
                   </Button>
                 </div>
               </div>
             </motion.section>
 
-            {/* Features Section */}
+            {/* Features Section - Mobile Optimized */}
             <motion.section
               ref={featuresRef}
               initial={{ opacity: 0, y: 40 }}
               animate={featuresInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.8 }}
-              className="py-20 px-4 sm:px-6 lg:px-8"
+              className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8"
             >
               <div className="max-w-7xl mx-auto">
-                <h2 className={`text-3xl md:text-4xl font-outfit font-bold text-center mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <h2 className={`text-2xl sm:text-3xl md:text-4xl font-outfit font-bold text-center mb-12 sm:mb-16 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Key Capabilities
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                   {[
                     {
                       icon: <Code className="w-8 h-8 text-purple-500" />,
@@ -192,21 +193,21 @@ function App() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={featuresInView ? { opacity: 1, y: 0 } : {}}
                       transition={{ duration: 0.5, delay: index * 0.2 }}
-                      className={`${isDarkMode ? 'card-gradient' : 'bg-white'} p-8 rounded-2xl backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 group`}
+                      className={`${isDarkMode ? 'card-gradient' : 'bg-white'} p-6 sm:p-8 rounded-2xl backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 group`}
                     >
                       <div className="mb-4 transform group-hover:scale-110 transition-transform duration-300">
                         {feature.icon}
                       </div>
-                      <h3 className={`text-xl font-outfit font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <h3 className={`text-lg sm:text-xl font-outfit font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         {feature.title}
                       </h3>
-                      <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                      <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         {feature.description}
                       </p>
                       <img
                         src={feature.demo}
                         alt={feature.title}
-                        className="w-full h-48 object-cover rounded-lg mt-4 opacity-80 group-hover:opacity-100 transition-opacity duration-300"
+                        className="w-full h-40 sm:h-48 object-cover rounded-lg mt-4 opacity-80 group-hover:opacity-100 transition-opacity duration-300"
                       />
                     </motion.div>
                   ))}

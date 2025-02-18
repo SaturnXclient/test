@@ -12,7 +12,28 @@
   }
   
   body {
-    @apply bg-[#0A0F2D] text-white font-inter transition-colors duration-300;
+    @apply bg-[#0A0F2D] text-white font-inter transition-colors duration-300 antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Improve touch targets on mobile */
+  button, a {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}
+
+/* Mobile-first media queries */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
   }
 }
 
@@ -30,7 +51,7 @@
   @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-cyan-400;
 }
 
-/* Dark mode specific styles */
+/* Mobile-optimized gradients */
 .dark .hero-gradient {
   background: radial-gradient(circle at center, rgba(110, 27, 255, 0.15), transparent 60%),
               radial-gradient(circle at 20% 80%, rgba(0, 240, 255, 0.1), transparent 40%);
@@ -41,15 +62,15 @@
               radial-gradient(circle at 20% 80%, rgba(0, 240, 255, 0.03), transparent 40%);
 }
 
-/* Chat interface specific styles */
+/* Mobile-optimized chat interface */
 .chat-container {
   @apply fixed inset-0 z-50 flex flex-col;
-  height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
 }
 
 .chat-header {
-  @apply flex-none;
+  @apply flex-none safe-top;
 }
 
 .chat-content {
@@ -58,11 +79,21 @@
 
 .chat-messages {
   @apply flex-1 overflow-y-auto;
-  height: calc(100vh - 13rem);
+  height: calc(100dvh - 13rem);
 }
 
 .chat-input {
-  @apply flex-none;
+  @apply flex-none safe-bottom;
+}
+
+/* Mobile-optimized animations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Sidebar animations */
