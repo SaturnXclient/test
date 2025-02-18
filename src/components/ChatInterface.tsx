@@ -8,7 +8,7 @@ import {
   Copy, Download as DownloadIcon, Trash2, Volume2,
   BrainCircuit, Lightbulb, Rocket, Mic, MicOff,
   RefreshCcw, History, Lock, Unlock, FileText,
-  Languages, Maximize2, Minimize2, RotateCcw
+  Languages, Maximize2, Minimize2, RotateCcw, AlertCircle
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -17,8 +17,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useDropzone } from 'react-dropzone';
 
-// Initialize Gemini AI with your API key
-const genAI = new GoogleGenerativeAI('AIzaSyCVbHlnda_Bb8TvMCN9wFsbJ1OQQQmZU7A');
+// Initialize Gemini AI with API key from environment variables
+const API_KEY = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+
+if (!API_KEY) {
+  console.error('Google AI API key is not configured. Please check your environment variables.');
+}
+
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Enhanced chat modes with more specific configurations
 const CHAT_MODES = [
@@ -195,11 +201,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
     const userMessage = input.trim();
     const messageId = Date.now().toString();
     
-    // Save current state for undo
     setUndoStack(prev => [...prev, messages]);
     setRedoStack([]);
 
-    // Add user message
     const newUserMessage: Message = {
       id: messageId,
       role: 'user',
@@ -215,13 +219,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
     setIsLoading(true);
 
     try {
-      // Get the current chat mode configuration
+      if (!API_KEY) {
+        throw new Error('Google AI API key is not configured. Please check your environment variables.');
+      }
+
       const currentMode = CHAT_MODES.find(mode => mode.id === chatMode) || CHAT_MODES[2];
 
       if (isImageMode && attachedFiles.length > 0) {
         const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
         
-        // Convert images to base64
         const imageFiles = await Promise.all(
           attachedFiles.map(async (file) => {
             const bytes = await file.arrayBuffer();
@@ -235,6 +241,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
         );
 
         const result = await model.generateContent([userMessage, ...imageFiles]);
+        if (!result.response) {
+          throw new Error('No response received from AI model');
+        }
         const response = await result.response;
         const text = response.text();
 
@@ -258,13 +267,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
         });
 
         const result = await chat.sendMessage(userMessage);
+        if (!result.response) {
+          throw new Error('No response received from AI model');
+        }
         const response = await result.response;
         const text = response.text();
 
         addAssistantMessage(text);
       }
     } catch (error) {
-      addAssistantMessage("I apologize, but I encountered an error. Please try again.");
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'An unexpected error occurred while processing your request';
+      
+      addAssistantMessage(`I apologize, but I encountered an error: ${errorMessage}. Please try again or contact support if the issue persists.`);
       console.error('AI Error:', error);
     } finally {
       setIsLoading(false);
@@ -456,50 +472,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                         ? 'hover:bg-white/10' 
                         : 'hover:bg-gray-100'
                   }`}
-                  title={mode.description}
                 >
                   {mode.icon}
-                  <span className="text-sm font-medium">{mode.name}</span>
+                  <span>{mode.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Messages */}
+          {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <AnimatePresence>
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg p-4 ${
+                    message.role === 'user'
+                      ? 'bg-purple-500/20 ml-auto'
+                      : theme === 'dark'
+                        ? 'bg-white/5'
+                        : 'bg-white'
+                  }`}
                 >
-                  <div
-                    className={`max-w-[80%] p-4 rounded-2xl ${
-                      message.role === 'user'
-                        ? theme === 'dark'
-                          ? 'bg-purple-500/20 ml-auto'
-                          : 'bg-purple-100 ml-auto'
-                        : theme === 'dark'
-                          ? 'bg-white/5 mr-auto'
-                          : 'bg-gray-100 mr-auto'
-                    }`}
-                    style={{ fontSize: `${settings.fontSize}px` }}
-                  >
-                    {message.images && message.images.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        {message.images.map((img, idx) => (
-                          <img
-                            key={idx}
-                            src={img}
-                            alt="Attached"
-                            className="rounded-lg max-h-48 object-cover"
-                          />
-                        ))}
-                      </div>
-                    )}
+                  {message.type === 'text' ? (
                     <ReactMarkdown
                       components={{
                         code({ node, inline, className, children, ...props }) {
@@ -514,9 +513,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                               {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
                           ) : (
-                            <code className={`${
-                              theme === 'dark' ? 'bg-black/20' : 'bg-gray-200'
-                            } rounded px-1`} {...props}>
+                            <code className={className} {...props}>
                               {children}
                             </code>
                           );
@@ -525,235 +522,161 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                     >
                       {message.content}
                     </ReactMarkdown>
-                    
-                    <div className="flex items-center justify-end gap-2 mt-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(message.content);
-                          // Add visual feedback
-                        }}
-                        className="p-1 hover:bg-white/10 rounded"
-                        title="Copy to clipboard"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      {message.role === 'assistant' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              const utterance = new SpeechSynthesisUtterance(message.content);
-                              speechSynthesis.speak(utterance);
-                            }}
-                            className="p-1 hover:bg-white/10 rounded"
-                            title="Read aloud"
-                          >
-                            <Volume2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setMessages(prev => prev.map(msg =>
-                                msg.id === message.id
-                                  ? { ...msg, likes: (msg.likes || 0) + 1 }
-                                  : msg
-                              ));
-                            }}
-                            className="p-1 hover:bg-white/10 rounded"
-                            title="Like"
-                          >
-                            <ThumbsUp size={14} />
-                          </button>
-                        </>
+                  ) : (
+                    <div>
+                      {message.images?.map((image, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`Uploaded ${index + 1}`}
+                          className="max-w-full rounded-lg mb-2"
+                        />
+                      ))}
+                      {message.content && (
+                        <p className="mt-2">{message.content}</p>
                       )}
                     </div>
-                    
-                    <div className="text-xs mt-2 text-gray-400">
-                      {message.timestamp.toLocaleTimeString()}
-                      {message.edited && ' (edited)'}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex justify-start"
-              >
-                <div className={`${
-                  theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
-                } p-4 rounded-2xl`}>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  )}
                 </div>
-              </motion.div>
+              </div>
+            ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className={`max-w-[80%] rounded-lg p-4 ${
+                  theme === 'dark' ? 'bg-white/5' : 'bg-white'
+                }`}>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Input Area */}
-          <div className={`border-t ${
+          <div className={`p-4 border-t ${
             theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-          } p-4`}>
-            {attachedFiles.length > 0 && (
-              <div className="mb-4 flex flex-wrap gap-2">
-                {attachedFiles.map((file, index) => (
-                  <div key={index} className="relative group">
-                    <img
-                      src={URL.createObjectURL(file)}
-                      alt="Preview"
-                      className="h-20 w-20 object-cover rounded-lg"
-                    />
-                    <button
-                      onClick={() => setAttachedFiles(files => files.filter((_, i) => i !== index))}
-                      className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X size={14} className="text-white" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            <form onSubmit={handleSubmit} className="flex items-end gap-2">
-              <div className="flex-1 relative">
-                <TextareaAutosize
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                  placeholder={isImageMode ? "Describe the image you want to analyze..." : "Type your message..."}
-                  className={`w-full ${
-                    theme === 'dark'
-                      ? 'bg-white/5 focus:ring-purple-500/50'
-                      : 'bg-gray-100 focus:ring-purple-500/30'
-                  } rounded-xl px-4 py-3 pr-24 min-h-[44px] max-h-[200px] resize-none focus:outline-none focus:ring-2 transition-all ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
+          }`}>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsImageMode(!isImageMode)}
+                  className={`p-2 rounded-lg ${
+                    isImageMode
+                      ? 'bg-purple-500/20 text-purple-400'
+                      : theme === 'dark'
+                        ? 'hover:bg-white/10'
+                        : 'hover:bg-gray-100'
                   }`}
-                  style={{ fontSize: `${settings.fontSize}px` }}
-                  minRows={1}
-                  maxRows={5}
-                />
-                
-                <div className="absolute right-2 bottom-2 flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isRecording ? 'text-red-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-                    }`}
-                    title={isRecording ? "Stop recording" : "Start recording"}
-                  >
-                    {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
-                  </button>
-                  
-                  <div {...getRootProps()}>
-                    <input {...getInputProps()} />
-                    <button
-                      type="button"
-                      className={`p-2 ${
-                        theme === 'dark'
-                          ? 'text-gray-400 hover:text-purple-400'
-                          : 'text-gray-500 hover:text-purple-500'
-                      } transition-colors`}
-                      title="Upload Image"
-                    >
-                      <Upload size={20} />
-                    </button>
-                  </div>
-                  
-                  <button
-                    type="submit"
-                    disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
-                    className={`p-2 ${
+                >
+                  <ImageIcon size={20} />
+                </button>
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`p-2 rounded-lg ${
+                    isRecording
+                      ? 'bg-red-500/20 text-red-400'
+                      : theme === 'dark'
+                        ? 'hover:bg-white/10'
+                        : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                </button>
+                <div className="flex-1">
+                  <TextareaAutosize
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your message..."
+                    className={`w-full px-4 py-2 rounded-lg resize-none ${
                       theme === 'dark'
-                        ? 'text-purple-500 hover:text-purple-400'
-                        : 'text-purple-600 hover:text-purple-500'
-                    } disabled:opacity-50 disabled:hover:text-purple-500 transition-colors`}
-                    title="Send Message"
-                  >
-                    <Send size={20} />
-                  </button>
+                        ? 'bg-white/5 focus:bg-white/10'
+                        : 'bg-white focus:bg-gray-50'
+                    } border ${
+                      theme === 'dark'
+                        ? 'border-white/10'
+                        : 'border-gray-200'
+                    } focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
+                    minRows={1}
+                    maxRows={5}
+                  />
                 </div>
+                <button
+                  type="submit"
+                  disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
+                  className="p-2 rounded-lg bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:hover:bg-purple-500"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send size={20} />
+                  )}
+                </button>
               </div>
+              
+              {isImageMode && (
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                    isDragActive
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : theme === 'dark'
+                        ? 'border-white/10 hover:border-white/20'
+                        : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input {...getInputProps()} />
+                  <Upload className="w-6 h-6 mx-auto mb-2" />
+                  <p>Drag & drop images here, or click to select files</p>
+                </div>
+              )}
+
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {attachedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-full ${
+                        theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                      }`}
+                    >
+                      <ImageIcon size={16} />
+                      <span className="text-sm truncate max-w-[150px]">
+                        {file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachedFiles(prev =>
+                            prev.filter((_, i) => i !== index)
+                          );
+                        }}
+                        className="hover:text-red-400"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </form>
           </div>
         </div>
 
-        {/* Sidebar */}
+        {/* Settings Sidebar */}
         <AnimatePresence>
-          {showSidebar && (
+          {showSettings && (
             <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              className={`border-l ${
-                theme === 'dark'
-                  ? 'border-white/10 bg-white/5'
-                  : 'border-gray-200 bg-gray-50'
-              } overflow-hidden`}
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 20 }}
+              className={`w-80 border-l ${
+                theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+              } overflow-y-auto`}
             >
-              <div className="p-4">
-                <h3 className={`font-outfit font-semibold mb-4 flex items-center gap-2 ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-900'
-                }`}>
-                  <Settings className="w-5 h-5 text-purple-500" />
-                  Settings & Features
-                </h3>
-                
-                {/* Settings Panel */}
-                <SettingsPanel />
-
-                {/* Saved Messages */}
-                <div className="mt-8">
-                  <h4 className="font-outfit font-semibold mb-4 flex items-center gap-2">
-                    <Bookmark className="w-5 h-5 text-purple-500" />
-                    Saved Messages
-                  </h4>
-                  <div className="space-y-2">
-                    {messages
-                      .filter(msg => msg.saved)
-                      .map(msg => (
-                        <div
-                          key={msg.id}
-                          className={`p-3 ${
-                            theme === 'dark'
-                              ? 'bg-white/5'
-                              : 'bg-gray-100'
-                          } rounded-lg text-sm`}
-                        >
-                          {msg.content.substring(0, 100)}...
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Chat History */}
-                <div className="mt-8">
-                  <h4 className="font-outfit font-semibold mb-4 flex items-center gap-2">
-                    <History className="w-5 h-5 text-purple-500" />
-                    Chat History
-                  </h4>
-                  <div className="space-y-2">
-                    {messageHistory.slice(-5).map(msg => (
-                      <div
-                        key={msg.id}
-                        className={`p-3 ${
-                          theme === 'dark'
-                            ? 'bg-white/5'
-                            : 'bg-gray-100'
-                        } rounded-lg text-sm cursor-pointer hover:bg-white/10 transition-colors`}
-                        onClick={() => setInput(msg.content)}
-                      >
-                        {msg.content.substring(0, 50)}...
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <SettingsPanel />
             </motion.div>
           )}
         </AnimatePresence>
