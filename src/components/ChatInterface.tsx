@@ -1,43 +1,170 @@
-{/* Previous imports remain unchanged */}
+import React, { useState, useRef, KeyboardEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  X, ImageIcon, Send, Mic, MicOff, Upload, Loader2,
+  Code, MessageSquare
+} from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
+import TextareaAutosize from 'react-textarea-autosize';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { getGeminiResponse } from '../lib/gemini';
+
+interface ChatInterfaceProps {
+  onClose: () => void;
+  isDarkMode: boolean;
+  onThemeChange: () => void;
+}
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  type: 'text' | 'image';
+  images?: string[];
+}
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onThemeChange }) => {
-  // ... previous state and hooks remain unchanged ...
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isImageMode, setIsImageMode] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatMode, setChatMode] = useState('code');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const CHAT_MODES = [
+    { id: 'code', name: 'Code', icon: <Code className="w-5 h-5" /> },
+    { id: 'image', name: 'Image', icon: <ImageIcon className="w-5 h-5" /> },
+    { id: 'chat', name: 'Chat', icon: <MessageSquare className="w-5 h-5" /> }
+  ];
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif']
+    },
+    onDrop: (acceptedFiles) => {
+      setAttachedFiles(prev => [...prev, ...acceptedFiles]);
+    }
+  });
+
+  const startRecording = () => {
+    setIsRecording(true);
+    // Implement recording logic
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    // Implement stop recording logic
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      type: attachedFiles.length > 0 ? 'image' : 'text',
+      images: attachedFiles.length > 0 ? attachedFiles.map(file => URL.createObjectURL(file)) : undefined
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+    setInput('');
+    setAttachedFiles([]);
+    setIsLoading(true);
+
+    try {
+      const aiResponse = await getGeminiResponse(input, chatMode as 'code' | 'chat');
+      
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: aiResponse,
+        type: 'text'
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: 'I apologize, but I encountered an error processing your request. Please try again.',
+        type: 'text'
+      }]);
+    } finally {
+      setIsLoading(false);
+      scrollToBottom();
+    }
+  };
+
+  const Toolbar = () => (
+    <div className="flex items-center space-x-2">
+      <button
+        onClick={() => setShowSettings(!showSettings)}
+        className={`p-2 rounded-lg ${
+          isDarkMode ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+        }`}
+      >
+        <ImageIcon size={20} />
+      </button>
+    </div>
+  );
+
+  const SettingsPanel = () => (
+    <div className="p-4">
+      <h3 className={`text-lg font-semibold mb-4 ${
+        isDarkMode ? 'text-white' : 'text-gray-900'
+      }`}>
+        Settings
+      </h3>
+      {/* Add settings content here */}
+    </div>
+  );
 
   return (
-    <div className={`fixed inset-0 ${theme === 'dark' ? 'bg-background' : 'bg-gray-50'} z-50`}>
-      {/* Header */}
-      <div className={`h-16 border-b ${
-        theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-      } flex items-center justify-between px-4`}>
+    <div className="fixed inset-0 flex flex-col bg-background z-50 md:p-4">
+      <div className={`flex-none h-16 md:h-14 border-b ${
+        isDarkMode ? 'border-white/10' : 'border-gray-200'
+      } flex items-center justify-between px-4 safe-top`}>
         <div className="flex items-center space-x-4">
           <button 
             onClick={onClose} 
             className={`p-2 ${
-              theme === 'dark' 
+              isDarkMode 
                 ? 'hover:bg-white/10' 
                 : 'hover:bg-gray-100'
             } rounded-lg`}
           >
-            <X size={20} className={theme === 'dark' ? 'text-white' : 'text-gray-900'} />
+            <X size={20} className={isDarkMode ? 'text-white' : 'text-gray-900'} />
           </button>
-          <div className="flex items-center gap-2">
-            <Zap className="w-6 h-6 text-purple-500" />
-            <h2 className={`font-outfit font-semibold text-xl ${
-              theme === 'dark' ? 'text-white' : 'text-gray-900'
-            }`}>
-              Sarux AI Chat
-            </h2>
-          </div>
+          <h2 className={`font-outfit font-semibold text-xl ${
+            isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+            Sarux AI Chat
+          </h2>
         </div>
         <Toolbar />
       </div>
 
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Main Chat Area */}
+      <div className="flex flex-1 h-[calc(100vh-4rem)] overflow-hidden">
         <div className="flex-1 flex flex-col">
-          {/* Chat Mode Selector */}
-          <div className={`p-4 border-b ${
-            theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+          <div className={`flex-none p-4 border-b ${
+            isDarkMode ? 'border-white/10' : 'border-gray-200'
           }`}>
             <div className="flex gap-4 justify-center">
               {CHAT_MODES.map((mode) => (
@@ -47,20 +174,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                     chatMode === mode.id
                       ? 'bg-purple-500/20 text-purple-400'
-                      : theme === 'dark' 
+                      : isDarkMode 
                         ? 'hover:bg-white/10' 
                         : 'hover:bg-gray-100'
                   }`}
                 >
                   {mode.icon}
-                  <span>{mode.name}</span>
+                  <span className="hidden sm:inline">{mode.name}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -69,10 +195,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-4 ${
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-lg p-4 ${
                     message.role === 'user'
                       ? 'bg-purple-500/20 ml-auto'
-                      : theme === 'dark'
+                      : isDarkMode
                         ? 'bg-white/5'
                         : 'bg-white'
                   }`}
@@ -84,7 +210,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                           const match = /language-(\w+)/.exec(className || '');
                           return !inline && match ? (
                             <SyntaxHighlighter
-                              style={theme === 'dark' ? atomDark : oneLight}
+                              style={isDarkMode ? atomDark : oneLight}
                               language={match[1]}
                               PreTag="div"
                               {...props}
@@ -103,7 +229,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                     </ReactMarkdown>
                   ) : (
                     <div>
-                      {message.images?.map((image, index) => (
+                      {message.images?.map((image: string, index: number) => (
                         <img
                           key={index}
                           src={image}
@@ -121,8 +247,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className={`max-w-[80%] rounded-lg p-4 ${
-                  theme === 'dark' ? 'bg-white/5' : 'bg-white'
+                <div className={`max-w-[85%] sm:max-w-[75%] rounded-lg p-4 ${
+                  isDarkMode ? 'bg-white/5' : 'bg-white'
                 }`}>
                   <Loader2 className="w-6 h-6 animate-spin" />
                 </div>
@@ -131,10 +257,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
-          <div className={`p-4 border-t ${
-            theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-          }`}>
+          <div className={`flex-none p-4 border-t ${
+            isDarkMode ? 'border-white/10' : 'border-gray-200'
+          } safe-bottom`}>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="flex gap-2">
                 <button
@@ -143,7 +268,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                   className={`p-2 rounded-lg ${
                     isImageMode
                       ? 'bg-purple-500/20 text-purple-400'
-                      : theme === 'dark'
+                      : isDarkMode
                         ? 'hover:bg-white/10'
                         : 'hover:bg-gray-100'
                   }`}
@@ -156,7 +281,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                   className={`p-2 rounded-lg ${
                     isRecording
                       ? 'bg-red-500/20 text-red-400'
-                      : theme === 'dark'
+                      : isDarkMode
                         ? 'hover:bg-white/10'
                         : 'hover:bg-gray-100'
                   }`}
@@ -165,15 +290,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                 </button>
                 <div className="flex-1">
                   <TextareaAutosize
+                    ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
                     placeholder="Type your message..."
                     className={`w-full px-4 py-2 rounded-lg resize-none ${
-                      theme === 'dark'
+                      isDarkMode
                         ? 'bg-white/5 focus:bg-white/10'
                         : 'bg-white focus:bg-gray-50'
                     } border ${
-                      theme === 'dark'
+                      isDarkMode
                         ? 'border-white/10'
                         : 'border-gray-200'
                     } focus:outline-none focus:ring-2 focus:ring-purple-500/20`}
@@ -189,7 +316,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Send size={20} />
+                    <Send size={20} className="text-white" />
                   )}
                 </button>
               </div>
@@ -200,7 +327,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                   className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
                     isDragActive
                       ? 'border-purple-500 bg-purple-500/10'
-                      : theme === 'dark'
+                      : isDarkMode
                         ? 'border-white/10 hover:border-white/20'
                         : 'border-gray-200 hover:border-gray-300'
                   }`}
@@ -217,7 +344,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
                     <div
                       key={index}
                       className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                        theme === 'dark' ? 'bg-white/5' : 'bg-gray-100'
+                        isDarkMode ? 'bg-white/5' : 'bg-gray-100'
                       }`}
                     >
                       <ImageIcon size={16} />
@@ -243,7 +370,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
           </div>
         </div>
 
-        {/* Settings Sidebar */}
         <AnimatePresence>
           {showSettings && (
             <motion.div
@@ -252,7 +378,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onTh
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 20 }}
               className={`w-80 border-l ${
-                theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+                isDarkMode ? 'border-white/10' : 'border-gray-200'
               } overflow-y-auto`}
             >
               <SettingsPanel />

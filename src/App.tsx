@@ -25,7 +25,6 @@ function App() {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // Theme toggle handler with document class update
   const toggleTheme = () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
@@ -34,7 +33,6 @@ function App() {
     document.documentElement.classList.toggle('light', !newTheme);
   };
 
-  // Initialize theme on mount
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDarkMode);
     document.documentElement.classList.toggle('light', !isDarkMode);
@@ -155,7 +153,7 @@ function App() {
               </div>
             </motion.section>
 
-            {/* Features Section - Mobile Optimized */}
+            {/* Features Section - Updated without images */}
             <motion.section
               ref={featuresRef}
               initial={{ opacity: 0, y: 40 }}
@@ -172,20 +170,17 @@ function App() {
                     {
                       icon: <Code className="w-8 h-8 text-purple-500" />,
                       title: "Advanced Code Generation",
-                      description: "Multi-language code synthesis with context-aware suggestions and real-time optimization.",
-                      demo: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=500&q=60"
+                      description: "Multi-language code synthesis with context-aware suggestions and real-time optimization."
                     },
                     {
                       icon: <Image className="w-8 h-8 text-cyan-400" />,
                       title: "AI Image Creation",
-                      description: "Generate stunning visuals with our state-of-the-art image synthesis technology.",
-                      demo: "https://images.unsplash.com/photo-1561736778-92e52a7769ef?auto=format&fit=crop&w=500&q=60"
+                      description: "Generate stunning visuals with our state-of-the-art image synthesis technology."
                     },
                     {
                       icon: <MessageSquareText className="w-8 h-8 text-purple-500" />,
                       title: "Intelligent Prompt Enhancement",
-                      description: "Refine and optimize your prompts for better results with our advanced language models.",
-                      demo: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=500&q=60"
+                      description: "Refine and optimize your prompts for better results with our advanced language models."
                     }
                   ].map((feature, index) => (
                     <motion.div
@@ -204,11 +199,6 @@ function App() {
                       <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         {feature.description}
                       </p>
-                      <img
-                        src={feature.demo}
-                        alt={feature.title}
-                        className="w-full h-40 sm:h-48 object-cover rounded-lg mt-4 opacity-80 group-hover:opacity-100 transition-opacity duration-300"
-                      />
                     </motion.div>
                   ))}
                 </div>
