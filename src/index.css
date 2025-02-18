@@ -12,7 +12,11 @@
   }
   
   body {
-    @apply bg-[#0A0F2D] text-white font-inter;
+    @apply bg-[#0A0F2D] text-white font-inter transition-colors duration-300;
+  }
+
+  .light-mode {
+    --color-background: 255, 255, 255;
   }
 }
 
@@ -37,4 +41,29 @@
 
 .float-animation {
   animation: float 6s ease-in-out infinite;
+}
+
+/* Theme Transitions */
+.theme-transition {
+  @apply transition-all duration-300;
+}
+
+/* Card Hover Effects */
+.feature-card {
+  @apply transform transition-all duration-300 hover:scale-105 hover:shadow-xl;
+}
+
+/* Testimonial Card */
+.testimonial-card {
+  @apply transform transition-all duration-300 hover:scale-105;
+}
+
+/* FAQ Animations */
+.faq-item {
+  @apply transition-all duration-300;
+}
+
+/* Integration Icon Animations */
+.integration-icon {
+  @apply transform transition-all duration-300 hover:scale-110 hover:rotate-3;
 }

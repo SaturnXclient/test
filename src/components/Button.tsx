@@ -1,11 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-interface ButtonProps {
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary';
   size?: 'sm' | 'md' | 'lg';
-  onClick?: () => void;
   className?: string;
 }
 
@@ -13,14 +12,14 @@ const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
   size = 'md',
-  onClick,
   className = '',
+  ...props
 }) => {
-  const baseStyles = 'rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center';
+  const baseStyles = 'rounded-lg font-medium transition-all duration-200 inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed';
   
   const variants = {
-    primary: 'bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-90',
-    secondary: 'bg-white/10 hover:bg-white/20 backdrop-blur-sm',
+    primary: 'bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-90 disabled:hover:opacity-50',
+    secondary: 'bg-white/10 hover:bg-white/20 backdrop-blur-sm disabled:hover:bg-white/10',
   };
 
   const sizes = {
@@ -34,7 +33,7 @@ const Button: React.FC<ButtonProps> = ({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      onClick={onClick}
+      {...props}
     >
       {children}
     </motion.button>
