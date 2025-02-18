@@ -6,7 +6,9 @@ import {
   Code, Palette, Bot, Settings, Share2, Bookmark,
   Crown, Coffee, ThumbsUp, ThumbsDown, Sun, Moon,
   Copy, Download as DownloadIcon, Trash2, Volume2,
-  BrainCircuit, Lightbulb, Rocket
+  BrainCircuit, Lightbulb, Rocket, Mic, MicOff,
+  RefreshCcw, History, Lock, Unlock, FileText,
+  Languages, Maximize2, Minimize2, RotateCcw
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -15,6 +17,63 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useDropzone } from 'react-dropzone';
 
+// Initialize Gemini AI with your API key
+const genAI = new GoogleGenerativeAI('AIzaSyCVbHlnda_Bb8TvMCN9wFsbJ1OQQQmZU7A');
+
+// Enhanced chat modes with more specific configurations
+const CHAT_MODES = [
+  { 
+    id: 'creative',
+    name: 'Creative',
+    icon: <Sparkles size={20} />,
+    description: 'More imaginative and experimental responses',
+    temperature: 0.9,
+    topK: 40,
+    topP: 0.95,
+  },
+  { 
+    id: 'precise',
+    name: 'Precise',
+    icon: <BrainCircuit size={20} />,
+    description: 'Factual and accurate responses',
+    temperature: 0.3,
+    topK: 20,
+    topP: 0.8,
+  },
+  { 
+    id: 'balanced',
+    name: 'Balanced',
+    icon: <Lightbulb size={20} />,
+    description: 'Mix of creativity and accuracy',
+    temperature: 0.7,
+    topK: 30,
+    topP: 0.9,
+  },
+  {
+    id: 'expert',
+    name: 'Expert',
+    icon: <Crown size={20} />,
+    description: 'Technical and detailed responses',
+    temperature: 0.5,
+    topK: 25,
+    topP: 0.85,
+  }
+];
+
+// Enhanced prompt suggestions
+const PROMPT_SUGGESTIONS = [
+  { icon: <Code size={16} />, text: "Generate a React component" },
+  { icon: <Palette size={16} />, text: "Create a color palette" },
+  { icon: <Bot size={16} />, text: "Explain how AI works" },
+  { icon: <Coffee size={16} />, text: "Design a landing page" },
+  { icon: <BrainCircuit size={16} />, text: "Optimize my code" },
+  { icon: <Lightbulb size={16} />, text: "Suggest improvements" },
+  { icon: <Rocket size={16} />, text: "Start a new project" },
+  { icon: <Languages size={16} />, text: "Translate text" },
+  { icon: <FileText size={16} />, text: "Summarize content" }
+];
+
+// Interface definitions
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -25,51 +84,67 @@ interface Message {
   saved?: boolean;
   codeLanguage?: string;
   timestamp: Date;
+  edited?: boolean;
+  context?: string;
 }
+
+interface ChatSettings {
+  autoScroll: boolean;
+  soundEffects: boolean;
+  markdownPreview: boolean;
+  autoComplete: boolean;
+  spellCheck: boolean;
+  fontSize: number;
+  maxTokens: number;
+  temperature: number;
+  topK: number;
+  topP: number;
+}
+
+// Default settings
+const DEFAULT_SETTINGS: ChatSettings = {
+  autoScroll: true,
+  soundEffects: true,
+  markdownPreview: true,
+  autoComplete: true,
+  spellCheck: true,
+  fontSize: 14,
+  maxTokens: 1000,
+  temperature: 0.7,
+  topK: 30,
+  topP: 0.9,
+};
 
 interface ChatInterfaceProps {
   onClose: () => void;
+  isDarkMode: boolean;
+  onThemeChange: () => void;
 }
 
-const genAI = new GoogleGenerativeAI('AIzaSyCVbHlnda_Bb8TvMCN9wFsbJ1OQQQmZU7A');
-
-const PROMPT_SUGGESTIONS = [
-  { icon: <Code size={16} />, text: "Generate a React component" },
-  { icon: <Palette size={16} />, text: "Create a color palette" },
-  { icon: <Bot size={16} />, text: "Explain how AI works" },
-  { icon: <Coffee size={16} />, text: "Design a landing page" },
-  { icon: <BrainCircuit size={16} />, text: "Optimize my code" },
-  { icon: <Lightbulb size={16} />, text: "Suggest improvements" },
-  { icon: <Rocket size={16} />, text: "Start a new project" }
-];
-
-const CODE_LANGUAGES = [
-  'javascript', 'typescript', 'python', 'java', 'cpp', 'rust',
-  'go', 'ruby', 'php', 'swift', 'kotlin', 'scala'
-];
-
-const CHAT_MODES = [
-  { id: 'creative', name: 'Creative', icon: <Sparkles size={20} /> },
-  { id: 'precise', name: 'Precise', icon: <BrainCircuit size={20} /> },
-  { id: 'balanced', name: 'Balanced', icon: <Lightbulb size={20} /> }
-];
-
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose, isDarkMode, onThemeChange }) => {
+  // State management
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isImageMode, setIsImageMode] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [isStreaming, setIsStreaming] = useState(false);
   const [chatMode, setChatMode] = useState('balanced');
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [savedMessages, setSavedMessages] = useState<string[]>([]);
+  const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [messageHistory, setMessageHistory] = useState<Message[]>([]);
+  const [savedMessages, setSavedMessages] = useState<string[]>([]);
+  const [undoStack, setUndoStack] = useState<Message[][]>([]);
+  const [redoStack, setRedoStack] = useState<Message[][]>([]);
 
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Dropzone configuration
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.gif']
@@ -79,112 +154,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
     }
   });
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  // Load message history from localStorage
-  useEffect(() => {
-    const savedHistory = localStorage.getItem('chatHistory');
-    if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory);
-      setMessageHistory(parsedHistory.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp)
-      })));
-    }
-  }, []);
-
-  // Save message history to localStorage
-  useEffect(() => {
-    if (messages.length > 0) {
-      const historyToSave = messages.map(msg => ({
-        ...msg,
-        timestamp: msg.timestamp.toISOString()
-      }));
-      localStorage.setItem('chatHistory', JSON.stringify(historyToSave));
-    }
-  }, [messages]);
-
-  const handlePromptSelect = (prompt: string) => {
-    setInput(prompt);
-  };
-
-  const toggleMessageSave = (messageId: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, saved: !msg.saved } : msg
-    ));
-    setSavedMessages(prev => 
-      prev.includes(messageId) 
-        ? prev.filter(id => id !== messageId)
-        : [...prev, messageId]
-    );
-  };
-
-  const handleLikeDislike = (messageId: string, isLike: boolean) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
-        ? { ...msg, likes: (msg.likes || 0) + (isLike ? 1 : -1) }
-        : msg
-    ));
-  };
-
-  const copyToClipboard = async (text: string) => {
+  // Speech recognition setup
+  const startRecording = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-      // Could add a toast notification here
-    } catch (err) {
-      console.error('Failed to copy text:', err);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        // Here you would typically send this to a speech-to-text service
+        // For now, we'll just show that it's captured
+        setInput(prev => prev + " [Audio input captured]");
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
     }
   };
 
-  const speakMessage = (text: string) => {
-    if ('speechSynthesis' in window) {
-      setIsSpeaking(true);
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.onend = () => setIsSpeaking(false);
-      speechSynthesis.speak(utterance);
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
     }
   };
 
-  const stopSpeaking = () => {
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      setIsSpeaking(false);
-    }
-  };
-
-  const clearChat = () => {
-    if (window.confirm('Are you sure you want to clear the chat history?')) {
-      setMessages([]);
-      localStorage.removeItem('chatHistory');
-    }
-  };
-
+  // Enhanced message handling
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
 
     const userMessage = input.trim();
     const messageId = Date.now().toString();
-    setInput('');
-    setMessages(prev => [...prev, { 
+    
+    // Save current state for undo
+    setUndoStack(prev => [...prev, messages]);
+    setRedoStack([]);
+
+    // Add user message
+    const newUserMessage: Message = {
       id: messageId,
-      role: 'user', 
+      role: 'user',
       content: userMessage,
       type: isImageMode ? 'image' : 'text',
       images: attachedFiles.map(file => URL.createObjectURL(file)),
-      timestamp: new Date()
-    }]);
+      timestamp: new Date(),
+      context: chatMode
+    };
+
+    setMessages(prev => [...prev, newUserMessage]);
+    setInput('');
     setIsLoading(true);
-    setIsStreaming(true);
 
     try {
-      if (isImageMode) {
+      // Get the current chat mode configuration
+      const currentMode = CHAT_MODES.find(mode => mode.id === chatMode) || CHAT_MODES[2];
+
+      if (isImageMode && attachedFiles.length > 0) {
         const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
         
         // Convert images to base64
@@ -204,83 +238,175 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
         const response = await result.response;
         const text = response.text();
 
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: text,
-          type: 'text',
-          likes: 0,
-          saved: false,
-          timestamp: new Date()
-        }]);
+        addAssistantMessage(text);
       } else {
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        
-        // Add chat mode context to the prompt
-        let contextPrompt = '';
-        switch (chatMode) {
-          case 'creative':
-            contextPrompt = 'Be creative and think outside the box. ';
-            break;
-          case 'precise':
-            contextPrompt = 'Be precise and technical in your response. ';
-            break;
-          case 'balanced':
-            contextPrompt = 'Provide a balanced response with both technical accuracy and clarity. ';
-            break;
-        }
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-pro",
+          generationConfig: {
+            temperature: currentMode.temperature,
+            topK: currentMode.topK,
+            topP: currentMode.topP,
+            maxOutputTokens: settings.maxTokens,
+          }
+        });
 
-        const result = await model.generateContent(contextPrompt + userMessage);
+        const chat = model.startChat({
+          history: messages.map(msg => ({
+            role: msg.role,
+            parts: msg.content
+          }))
+        });
+
+        const result = await chat.sendMessage(userMessage);
         const response = await result.response;
         const text = response.text();
 
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: text,
-          type: 'text',
-          likes: 0,
-          saved: false,
-          timestamp: new Date()
-        }]);
+        addAssistantMessage(text);
       }
     } catch (error) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "I apologize, but I encountered an error. Please try again.",
-        type: 'text',
-        timestamp: new Date()
-      }]);
+      addAssistantMessage("I apologize, but I encountered an error. Please try again.");
+      console.error('AI Error:', error);
     } finally {
       setIsLoading(false);
-      setIsStreaming(false);
       setAttachedFiles([]);
+      if (settings.autoScroll) {
+        scrollToBottom();
+      }
     }
   };
 
-  const improveMessage = async (messageId: string) => {
-    const message = messages.find(m => m.id === messageId);
-    if (!message || message.role !== 'user') return;
+  const addAssistantMessage = (content: string) => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content,
+      type: 'text',
+      likes: 0,
+      saved: false,
+      timestamp: new Date()
+    };
 
-    setIsLoading(true);
-    try {
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      const result = await model.generateContent(
-        `Improve this message by making it more clear, professional, and detailed: ${message.content}`
-      );
-      const response = await result.response;
-      const improvedText = response.text();
+    setMessages(prev => [...prev, newMessage]);
+    setMessageHistory(prev => [...prev, newMessage]);
+  };
 
-      setMessages(prev => prev.map(m => 
-        m.id === messageId ? { ...m, content: improvedText } : m
-      ));
-    } catch (error) {
-      // Handle error
-    } finally {
-      setIsLoading(false);
+  // Utility functions
+  const scrollToBottom = () => {
+    if (settings.autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length > 0) {
+      const previousState = undoStack[undoStack.length - 1];
+      setRedoStack(prev => [...prev, messages]);
+      setMessages(previousState);
+      setUndoStack(prev => prev.slice(0, -1));
+    }
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length > 0) {
+      const nextState = redoStack[redoStack.length - 1];
+      setUndoStack(prev => [...prev, messages]);
+      setMessages(nextState);
+      setRedoStack(prev => prev.slice(0, -1));
+    }
+  };
+
+  // Settings panel component
+  const SettingsPanel = () => (
+    <div className={`p-4 ${theme === 'dark' ? 'bg-white/5' : 'bg-gray-50'} rounded-lg`}>
+      <h3 className="font-outfit font-semibold mb-4">Chat Settings</h3>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span>Auto-scroll</span>
+          <button
+            onClick={() => setSettings(prev => ({ ...prev, autoScroll: !prev.autoScroll }))}
+            className={`p-2 rounded-lg ${settings.autoScroll ? 'bg-purple-500/20' : 'bg-gray-200'}`}
+          >
+            {settings.autoScroll ? <Lock size={16} /> : <Unlock size={16} />}
+          </button>
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <span>Sound Effects</span>
+          <button
+            onClick={() => setSettings(prev => ({ ...prev, soundEffects: !prev.soundEffects }))}
+            className={`p-2 rounded-lg ${settings.soundEffects ? 'bg-purple-500/20' : 'bg-gray-200'}`}
+          >
+            {settings.soundEffects ? <Volume2 size={16} /> : <Volume2 size={16} className="text-gray-400" />}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm">Font Size</label>
+          <input
+            type="range"
+            min="12"
+            max="20"
+            value={settings.fontSize}
+            onChange={(e) => setSettings(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
+            className="w-full"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm">Max Tokens</label>
+          <input
+            type="range"
+            min="100"
+            max="2000"
+            step="100"
+            value={settings.maxTokens}
+            onChange={(e) => setSettings(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
+            className="w-full"
+          />
+          <div className="text-xs text-gray-500">{settings.maxTokens} tokens</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Enhanced toolbar component
+  const Toolbar = () => (
+    <div className="flex items-center space-x-2 px-4 py-2">
+      <button
+        onClick={handleUndo}
+        disabled={undoStack.length === 0}
+        className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+        title="Undo"
+      >
+        <RotateCcw size={16} />
+      </button>
+      <button
+        onClick={handleRedo}
+        disabled={redoStack.length === 0}
+        className="p-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+        title="Redo"
+      >
+        <RefreshCcw size={16} />
+      </button>
+      <button
+        onClick={toggleFullscreen}
+        className="p-2 rounded-lg hover:bg-white/10"
+        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+      >
+        {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+      </button>
+    </div>
+  );
 
   return (
     <div className={`fixed inset-0 ${theme === 'dark' ? 'bg-background' : 'bg-gray-50'} z-50`}>
@@ -308,39 +434,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
             </h2>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsImageMode(!isImageMode)}
-            className={`p-2 rounded-lg transition-colors ${
-              isImageMode 
-                ? 'bg-purple-500/20 text-purple-400' 
-                : theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`}
-            title="Toggle Image Mode"
-          >
-            <ImageIcon size={20} />
-          </button>
-          <button
-            onClick={() => setShowSidebar(!showSidebar)}
-            className={`p-2 rounded-lg transition-colors ${
-              showSidebar 
-                ? 'bg-purple-500/20 text-purple-400' 
-                : theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`}
-            title="Toggle Sidebar"
-          >
-            <PanelRight size={20} />
-          </button>
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className={`p-2 ${
-              theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            } rounded-lg`}
-            title="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-        </div>
+        <Toolbar />
       </div>
 
       <div className="flex h-[calc(100vh-4rem)]">
@@ -362,31 +456,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                         ? 'hover:bg-white/10' 
                         : 'hover:bg-gray-100'
                   }`}
+                  title={mode.description}
                 >
                   {mode.icon}
                   <span className="text-sm font-medium">{mode.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Prompt Suggestions */}
-          <div className={`p-4 border-b ${
-            theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-          }`}>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {PROMPT_SUGGESTIONS.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => handlePromptSelect(suggestion.text)}
-                  className={`flex items-center gap-2 px-3 py-2 ${
-                    theme === 'dark'
-                      ? 'bg-white/5 hover:bg-white/10'
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  } rounded-lg transition-colors whitespace-nowrap`}
-                >
-                  {suggestion.icon}
-                  <span className="text-sm">{suggestion.text}</span>
                 </button>
               ))}
             </div>
@@ -400,6 +473,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                   key={message.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -412,6 +486,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                           ? 'bg-white/5 mr-auto'
                           : 'bg-gray-100 mr-auto'
                     }`}
+                    style={{ fontSize: `${settings.fontSize}px` }}
                   >
                     {message.images && message.images.length > 0 && (
                       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -425,126 +500,75 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                         ))}
                       </div>
                     )}
-                    <div className="flex items-start gap-2">
-                      <ReactMarkdown
-                        components={{
-                          code({ node, inline, className, children, ...props }) {
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={theme === 'dark' ? atomDark : oneLight}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={`${
-                                theme === 'dark' ? 'bg-black/20' : 'bg-gray-200'
-                              } rounded px-1`} {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
+                    <ReactMarkdown
+                      components={{
+                        code({ node, inline, className, children, ...props }) {
+                          const match = /language-(\w+)/.exec(className || '');
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={theme === 'dark' ? atomDark : oneLight}
+                              language={match[1]}
+                              PreTag="div"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code className={`${
+                              theme === 'dark' ? 'bg-black/20' : 'bg-gray-200'
+                            } rounded px-1`} {...props}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                    
                     <div className="flex items-center justify-end gap-2 mt-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(message.content);
+                          // Add visual feedback
+                        }}
+                        className="p-1 hover:bg-white/10 rounded"
+                        title="Copy to clipboard"
+                      >
+                        <Copy size={14} />
+                      </button>
                       {message.role === 'assistant' && (
                         <>
                           <button
-                            onClick={() => copyToClipboard(message.content)}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors`}
-                            title="Copy to Clipboard"
-                          >
-                            <Copy size={14} />
-                          </button>
-                          <button
-                            onClick={() => isSpeaking ? stopSpeaking() : speakMessage(message.content)}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors ${
-                              isSpeaking ? 'text-purple-500' : ''
-                            }`}
-                            title={isSpeaking ? "Stop Speaking" : "Speak Message"}
+                            onClick={() => {
+                              const utterance = new SpeechSynthesisUtterance(message.content);
+                              speechSynthesis.speak(utterance);
+                            }}
+                            className="p-1 hover:bg-white/10 rounded"
+                            title="Read aloud"
                           >
                             <Volume2 size={14} />
                           </button>
                           <button
-                            onClick={() => handleLikeDislike(message.id, true)}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors`}
+                            onClick={() => {
+                              setMessages(prev => prev.map(msg =>
+                                msg.id === message.id
+                                  ? { ...msg, likes: (msg.likes || 0) + 1 }
+                                  : msg
+                              ));
+                            }}
+                            className="p-1 hover:bg-white/10 rounded"
                             title="Like"
                           >
                             <ThumbsUp size={14} />
                           </button>
-                          <button
-                            onClick={() => handleLikeDislike(message.id, false)}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors`}
-                            title="Dislike"
-                          >
-                            <ThumbsDown size={14} />
-                          </button>
-                          <button
-                            onClick={() => toggleMessageSave(message.id)}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors ${
-                              message.saved ? 'text-yellow-500' : ''
-                            }`}
-                            title={message.saved ? 'Unsave' : 'Save'}
-                          >
-                            <Bookmark size={14} />
-                          </button>
-                          <button
-                            onClick={() => {/* Add share functionality */}}
-                            className={`p-1 ${
-                              theme === 'dark'
-                                ? 'hover:bg-white/10'
-                                : 'hover:bg-gray-200'
-                            } rounded transition-colors`}
-                            title="Share"
-                          >
-                            <Share2 size={14} />
-                          </button>
                         </>
                       )}
-                      {message.role === 'user' && (
-                        <button
-                          onClick={() => improveMessage(message.id)}
-                          className={`p-1 ${
-                            theme === 'dark'
-                              ? 'hover:bg-white/10'
-                              : 'hover:bg-gray-200'
-                          } rounded transition-colors`}
-                          title="Improve message"
-                        >
-                          <Wand2 size={14} />
-                        </button>
-                      )}
                     </div>
-                    <div className={`text-xs mt-2 ${
-                      theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
+                    
+                    <div className="text-xs mt-2 text-gray-400">
                       {message.timestamp.toLocaleTimeString()}
+                      {message.edited && ' (edited)'}
                     </div>
                   </div>
                 </motion.div>
@@ -566,27 +590,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Code Language Selector */}
-          {messages.length > 0 && messages[messages.length - 1].type === 'code' && (
-            <div className={`px-4 py-2 border-t ${
-              theme === 'dark' ? 'border-white/10' : 'border-gray-200'
-            }`}>
-              <select
-                value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
-                className={`${
-                  theme === 'dark'
-                    ? 'bg-white/5 border-white/10'
-                    : 'bg-gray-100 border-gray-200'
-                } border rounded-lg px-3 py-1 text-sm`}
-              >
-                {CODE_LANGUAGES.map(lang => (
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           {/* Input Area */}
           <div className={`border-t ${
             theme === 'dark' ? 'border-white/10' : 'border-gray-200'
@@ -604,12 +607,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                       onClick={() => setAttachedFiles(files => files.filter((_, i) => i !== index))}
                       className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X size={14} />
+                      <X size={14} className="text-white" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
+            
             <form onSubmit={handleSubmit} className="flex items-end gap-2">
               <div className="flex-1 relative">
                 <TextareaAutosize
@@ -621,7 +625,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                       handleSubmit(e);
                     }
                   }}
-                  placeholder={isImageMode ? "Describe the image you want to generate..." : "Type your message..."}
+                  placeholder={isImageMode ? "Describe the image you want to analyze..." : "Type your message..."}
                   className={`w-full ${
                     theme === 'dark'
                       ? 'bg-white/5 focus:ring-purple-500/50'
@@ -629,10 +633,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                   } rounded-xl px-4 py-3 pr-24 min-h-[44px] max-h-[200px] resize-none focus:outline-none focus:ring-2 transition-all ${
                     theme === 'dark' ? 'text-white' : 'text-gray-900'
                   }`}
+                  style={{ fontSize: `${settings.fontSize}px` }}
                   minRows={1}
                   maxRows={5}
                 />
+                
                 <div className="absolute right-2 bottom-2 flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isRecording ? 'text-red-500' : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                    }`}
+                    title={isRecording ? "Stop recording" : "Start recording"}
+                  >
+                    {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+                  </button>
+                  
                   <div {...getRootProps()}>
                     <input {...getInputProps()} />
                     <button
@@ -647,6 +664,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                       <Upload size={20} />
                     </button>
                   </div>
+                  
                   <button
                     type="submit"
                     disabled={isLoading || (!input.trim() && attachedFiles.length === 0)}
@@ -682,60 +700,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                 <h3 className={`font-outfit font-semibold mb-4 flex items-center gap-2 ${
                   theme === 'dark' ? 'text-white' : 'text-gray-900'
                 }`}>
-                  <Crown className="w-5 h-5 text-yellow-500" />
-                  Premium Features
+                  <Settings className="w-5 h-5 text-purple-500" />
+                  Settings & Features
                 </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                      Image Generation
-                    </span>
-                    <button
-                      onClick={() => setIsImageMode(!isImageMode)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isImageMode
-                          ? 'bg-purple-500/20 text-purple-400'
-                          : theme === 'dark'
-                            ? 'bg-white/10'
-                            : 'bg-gray-200'
-                      }`}
-                    >
-                      <ImageIcon size={20} />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                      Code Assistant
-                    </span>
-                    <button
-                      className={`p-2 rounded-lg ${
-                        theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'
-                      } transition-colors`}
-                    >
-                      <Code size={20} />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                      Creative Mode
-                    </span>
-                    <button
-                      className={`p-2 rounded-lg ${
-                        theme === 'dark' ? 'bg-white/10' : 'bg-gray-200'
-                      } transition-colors`}
-                    >
-                      <Sparkles size={20} />
-                    </button>
-                  </div>
-                </div>
+                
+                {/* Settings Panel */}
+                <SettingsPanel />
 
+                {/* Saved Messages */}
                 <div className="mt-8">
-                  <h3 className={`font-outfit font-semibold mb-4 flex items-center gap-2 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <h4 className="font-outfit font-semibold mb-4 flex items-center gap-2">
                     <Bookmark className="w-5 h-5 text-purple-500" />
                     Saved Messages
-                  </h3>
+                  </h4>
                   <div className="space-y-2">
                     {messages
                       .filter(msg => msg.saved)
@@ -748,55 +725,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
                               : 'bg-gray-100'
                           } rounded-lg text-sm`}
                         >
-                          {msg.content.substring(0, 100)}... ```
+                          {msg.content.substring(0, 100)}...
                         </div>
                       ))}
                   </div>
                 </div>
 
+                {/* Chat History */}
                 <div className="mt-8">
-                  <h3 className={`font-outfit font-semibold mb-4 flex items-center gap-2 ${
-                    theme === 'dark' ? 'text-white' : 'text-gray-900'
-                  }`}>
-                    <Settings className="w-5 h-5 text-purple-500" />
-                    Chat Settings
-                  </h3>
-                  <div className="space-y-4">
-                    <button
-                      onClick={clearChat}
-                      className={`flex items-center gap-2 w-full p-2 ${
-                        theme === 'dark'
-                          ? 'bg-white/5 hover:bg-white/10'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      } rounded-lg transition-colors`}
-                    >
-                      <Trash2 size={16} className="text-red-500" />
-                      <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                        Clear Chat History
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const historyData = JSON.stringify(messages, null, 2);
-                        const blob = new Blob([historyData], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'chat-history.json';
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      className={`flex items-center gap-2 w-full p-2 ${
-                        theme === 'dark'
-                          ? 'bg-white/5 hover:bg-white/10'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                      } rounded-lg transition-colors`}
-                    >
-                      <DownloadIcon size={16} className="text-purple-500" />
-                      <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}>
-                        Export Chat History
-                      </span>
-                    </button>
+                  <h4 className="font-outfit font-semibold mb-4 flex items-center gap-2">
+                    <History className="w-5 h-5 text-purple-500" />
+                    Chat History
+                  </h4>
+                  <div className="space-y-2">
+                    {messageHistory.slice(-5).map(msg => (
+                      <div
+                        key={msg.id}
+                        className={`p-3 ${
+                          theme === 'dark'
+                            ? 'bg-white/5'
+                            : 'bg-gray-100'
+                        } rounded-lg text-sm cursor-pointer hover:bg-white/10 transition-colors`}
+                        onClick={() => setInput(msg.content)}
+                      >
+                        {msg.content.substring(0, 50)}...
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -809,5 +763,3 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onClose }) => {
 };
 
 export default ChatInterface;
-
-export default ChatInterface

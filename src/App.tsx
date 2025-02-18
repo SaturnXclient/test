@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
@@ -19,18 +19,26 @@ function App() {
   const [showChat, setShowChat] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
-    return saved ? saved === 'dark' : true;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return saved ? saved === 'dark' : prefersDark;
   });
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
 
-  // Theme toggle handler
+  // Theme toggle handler with document class update
   const toggleTheme = () => {
     const newTheme = !isDarkMode;
     setIsDarkMode(newTheme);
     localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-    document.documentElement.classList.toggle('light-mode');
+    document.documentElement.classList.toggle('dark', newTheme);
+    document.documentElement.classList.toggle('light', !newTheme);
   };
+
+  // Initialize theme on mount
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    document.documentElement.classList.toggle('light', !isDarkMode);
+  }, []);
 
   const testimonials = [
     {
@@ -89,7 +97,7 @@ function App() {
       <Route
         path="/"
         element={
-          <div className={`min-h-screen ${isDarkMode ? 'bg-background' : 'bg-gray-50'} text-${isDarkMode ? 'white' : 'gray-900'} overflow-x-hidden transition-colors duration-300`}>
+          <div className={`min-h-screen ${isDarkMode ? 'dark bg-background' : 'light bg-gray-50'} text-${isDarkMode ? 'white' : 'gray-900'} overflow-x-hidden transition-colors duration-300`}>
             <ParticleBackground />
             
             {/* Navigation */}
@@ -357,7 +365,13 @@ function App() {
 
             {/* Chat Interface */}
             <AnimatePresence>
-              {showChat && <ChatInterface onClose={() => setShowChat(false)} />}
+              {showChat && (
+                <ChatInterface 
+                  onClose={() => setShowChat(false)}
+                  isDarkMode={isDarkMode}
+                  onThemeChange={toggleTheme}
+                />
+              )}
             </AnimatePresence>
           </div>
         }

@@ -14,56 +14,137 @@
   body {
     @apply bg-[#0A0F2D] text-white font-inter transition-colors duration-300;
   }
+}
 
-  .light-mode {
-    --color-background: 255, 255, 255;
-  }
+:root.dark {
+  --color-background: 10, 15, 45;
+  color-scheme: dark;
+}
+
+:root.light {
+  --color-background: 255, 255, 255;
+  color-scheme: light;
 }
 
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-500 to-cyan-400;
 }
 
-.hero-gradient {
+/* Dark mode specific styles */
+.dark .hero-gradient {
   background: radial-gradient(circle at center, rgba(110, 27, 255, 0.15), transparent 60%),
               radial-gradient(circle at 20% 80%, rgba(0, 240, 255, 0.1), transparent 40%);
 }
 
-.card-gradient {
-  background: linear-gradient(135deg, rgba(110, 27, 255, 0.1), rgba(0, 240, 255, 0.05));
+.light .hero-gradient {
+  background: radial-gradient(circle at center, rgba(110, 27, 255, 0.05), transparent 60%),
+              radial-gradient(circle at 20% 80%, rgba(0, 240, 255, 0.03), transparent 40%);
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
-  100% { transform: translateY(0px); }
+/* Chat interface specific styles */
+.chat-container {
+  @apply fixed inset-0 z-50 flex flex-col;
+  height: 100vh;
+  max-height: 100vh;
 }
 
-.float-animation {
-  animation: float 6s ease-in-out infinite;
+.chat-header {
+  @apply flex-none;
 }
 
-/* Theme Transitions */
+.chat-content {
+  @apply flex-1 overflow-hidden;
+}
+
+.chat-messages {
+  @apply flex-1 overflow-y-auto;
+  height: calc(100vh - 13rem);
+}
+
+.chat-input {
+  @apply flex-none;
+}
+
+/* Sidebar animations */
+.sidebar-enter {
+  transform: translateX(100%);
+}
+
+.sidebar-enter-active {
+  transform: translateX(0%);
+  transition: transform 200ms ease-out;
+}
+
+.sidebar-exit {
+  transform: translateX(0%);
+}
+
+.sidebar-exit-active {
+  transform: translateX(100%);
+  transition: transform 200ms ease-in;
+}
+
+/* Theme transitions */
 .theme-transition {
   @apply transition-all duration-300;
 }
 
-/* Card Hover Effects */
+/* Card hover effects */
 .feature-card {
   @apply transform transition-all duration-300 hover:scale-105 hover:shadow-xl;
 }
 
-/* Testimonial Card */
+/* Testimonial card */
 .testimonial-card {
   @apply transform transition-all duration-300 hover:scale-105;
 }
 
-/* FAQ Animations */
+/* FAQ animations */
 .faq-item {
   @apply transition-all duration-300;
 }
 
-/* Integration Icon Animations */
+/* Integration icon animations */
 .integration-icon {
   @apply transform transition-all duration-300 hover:scale-110 hover:rotate-3;
+}
+
+/* Chat tabs */
+.chat-tab {
+  @apply px-4 py-2 rounded-lg transition-colors;
+}
+
+.chat-tab.active {
+  @apply bg-purple-500/20 text-purple-400;
+}
+
+.dark .chat-tab:not(.active) {
+  @apply hover:bg-white/10;
+}
+
+.light .chat-tab:not(.active) {
+  @apply hover:bg-gray-100;
+}
+
+/* Scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 27, 255, 0.3) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(110, 27, 255, 0.3);
+  border-radius: 3px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
 }
