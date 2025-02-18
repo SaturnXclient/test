@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
-import { ArrowLeft, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import Button from './Button';
 
 const schema = z.object({
@@ -15,6 +15,8 @@ const schema = z.object({
   country: z.string().min(1, 'Please select your country'),
   interest: z.string().optional(),
   source: z.string().optional(),
+  role: z.string().min(1, 'Please select your role'),
+  experience: z.string().optional(),
   privacyPolicy: z.boolean().refine((val) => val === true, {
     message: 'You must accept the privacy policy',
   }),
@@ -33,8 +35,17 @@ const countries = [
   { code: 'DE', name: 'Germany' },
   { code: 'FR', name: 'France' },
   { code: 'JP', name: 'Japan' },
-  // Add more countries as needed
 ].sort((a, b) => a.name.localeCompare(b.name));
+
+const roles = [
+  'Developer',
+  'Data Scientist',
+  'Designer',
+  'Product Manager',
+  'Researcher',
+  'Student',
+  'Other'
+];
 
 const sources = [
   'Search Engine',
@@ -44,6 +55,13 @@ const sources = [
   'Conference/Event',
   'Advertisement',
   'Other',
+];
+
+const experienceLevels = [
+  'Beginner',
+  'Intermediate',
+  'Advanced',
+  'Expert'
 ];
 
 const EarlyAccessForm = () => {
@@ -69,12 +87,13 @@ const EarlyAccessForm = () => {
       country: '',
       interest: '',
       source: '',
+      role: '',
+      experience: '',
       privacyPolicy: false,
       termsOfService: false,
     },
   });
 
-  // Load saved form data from localStorage
   useEffect(() => {
     const savedData = localStorage.getItem('earlyAccessForm');
     if (savedData) {
@@ -85,13 +104,11 @@ const EarlyAccessForm = () => {
     }
   }, [setValue]);
 
-  // Save form data to localStorage when fields change
   const formValues = watch();
   useEffect(() => {
     localStorage.setItem('earlyAccessForm', JSON.stringify(formValues));
     
-    // Calculate form progress
-    const requiredFields = ['fullName', 'email', 'age', 'country'];
+    const requiredFields = ['fullName', 'email', 'age', 'country', 'role'];
     const completedFields = requiredFields.filter(field => 
       dirtyFields[field as keyof FormData]
     ).length;
@@ -108,17 +125,9 @@ const EarlyAccessForm = () => {
       }
 
       const token = await executeRecaptcha('early_access');
-
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Clear saved form data
       localStorage.removeItem('earlyAccessForm');
-      
       setSubmitSuccess(true);
-
-      // Simulate sending confirmation email
-      console.log('Sending confirmation email to:', data.email);
 
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'An error occurred');
@@ -159,7 +168,6 @@ const EarlyAccessForm = () => {
           Back to Home
         </button>
 
-        {/* Progress Bar */}
         <div className="h-1 bg-white/10 rounded-full mb-8">
           <motion.div
             className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 rounded-full"
@@ -170,82 +178,60 @@ const EarlyAccessForm = () => {
         </div>
 
         <div className="bg-white/5 backdrop-blur-md rounded-2xl p-6 md:p-8">
-          <h1 className="text-3xl font-outfit font-bold mb-2">Get Early Access</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <Sparkles className="w-6 h-6 text-purple-500" />
+            <h1 className="text-3xl font-outfit font-bold">Get Early Access</h1>
+          </div>
           <p className="text-gray-400 mb-8">
             Join our exclusive early access program and be among the first to experience Sarux AI.
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Full Name */}
             <div className="relative">
               <input
                 type="text"
                 {...register('fullName')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-transparent peer focus:outline-none focus:border-purple-500 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
                 placeholder="Full Name"
-                id="fullName"
               />
-              <label
-                htmlFor="fullName"
-                className="absolute left-4 -top-6 text-sm text-gray-400 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-3 transition-all peer-focus:-top-6 peer-focus:text-sm peer-focus:text-purple-500"
-              >
-                Full Name
-              </label>
               {errors.fullName && (
                 <p className="mt-1 text-red-400 text-sm">{errors.fullName.message}</p>
               )}
             </div>
 
-            {/* Email */}
             <div className="relative">
               <input
                 type="email"
                 {...register('email')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-transparent peer focus:outline-none focus:border-purple-500 transition-colors"
-                placeholder="Email"
-                id="email"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                placeholder="Email Address"
               />
-              <label
-                htmlFor="email"
-                className="absolute left-4 -top-6 text-sm text-gray-400 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-3 transition-all peer-focus:-top-6 peer-focus:text-sm peer-focus:text-purple-500"
-              >
-                Email Address
-              </label>
               {errors.email && (
                 <p className="mt-1 text-red-400 text-sm">{errors.email.message}</p>
               )}
             </div>
 
-            {/* Age */}
             <div className="relative">
               <input
                 type="number"
                 {...register('age', { valueAsNumber: true })}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-transparent peer focus:outline-none focus:border-purple-500 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
                 placeholder="Age"
-                id="age"
               />
-              <label
-                htmlFor="age"
-                className="absolute left-4 -top-6 text-sm text-gray-400 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-3 transition-all peer-focus:-top-6 peer-focus:text-sm peer-focus:text-purple-500"
-              >
-                Age
-              </label>
               {errors.age && (
                 <p className="mt-1 text-red-400 text-sm">{errors.age.message}</p>
               )}
             </div>
 
-            {/* Country */}
             <div className="relative">
               <select
                 {...register('country')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                id="country"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="">Select Country/Region</option>
+                <option value="" className="bg-background">Select Country/Region</option>
                 {countries.map(country => (
-                  <option key={country.code} value={country.code}>
+                  <option key={country.code} value={country.code} className="bg-background">
                     {country.name}
                   </option>
                 ))}
@@ -255,39 +241,62 @@ const EarlyAccessForm = () => {
               )}
             </div>
 
-            {/* Interest */}
+            <div className="relative">
+              <select
+                {...register('role')}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none"
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="" className="bg-background">Select Your Role</option>
+                {roles.map(role => (
+                  <option key={role} value={role} className="bg-background">
+                    {role}
+                  </option>
+                ))}
+              </select>
+              {errors.role && (
+                <p className="mt-1 text-red-400 text-sm">{errors.role.message}</p>
+              )}
+            </div>
+
+            <div className="relative">
+              <select
+                {...register('experience')}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none"
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="" className="bg-background">Experience Level (Optional)</option>
+                {experienceLevels.map(level => (
+                  <option key={level} value={level} className="bg-background">
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="relative">
               <textarea
                 {...register('interest')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-transparent peer focus:outline-none focus:border-purple-500 transition-colors min-h-[100px]"
-                placeholder="Why are you interested?"
-                id="interest"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors min-h-[100px] resize-none"
+                placeholder="Why are you interested in early access? (Optional)"
               />
-              <label
-                htmlFor="interest"
-                className="absolute left-4 -top-6 text-sm text-gray-400 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-500 peer-placeholder-shown:top-3 transition-all peer-focus:-top-6 peer-focus:text-sm peer-focus:text-purple-500"
-              >
-                Why are you interested in early access? (Optional)
-              </label>
             </div>
 
-            {/* Source */}
             <div className="relative">
               <select
                 {...register('source')}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors"
-                id="source"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition-colors appearance-none"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="">How did you hear about us? (Optional)</option>
+                <option value="" className="bg-background">How did you hear about us? (Optional)</option>
                 {sources.map(source => (
-                  <option key={source} value={source}>
+                  <option key={source} value={source} className="bg-background">
                     {source}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Agreements */}
             <div className="space-y-4">
               <div className="flex items-start">
                 <input
